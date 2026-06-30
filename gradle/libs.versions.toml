@@ -17,7 +17,6 @@ lifecycleViewmodelAndroid = "2.8.3"
 firebaseCommonKtx = "21.0.0"
 firebaseAuth = "23.0.0"
 runtimeLivedata = "1.6.8"
-firebaseStorageKtx = "21.0.0"
 roomKtx = "2.6.1"
 identityJvm = "202408.1"
 
@@ -43,7 +42,6 @@ androidx-lifecycle-viewmodel-android = { group = "androidx.lifecycle", name = "l
 firebase-common-ktx = { group = "com.google.firebase", name = "firebase-common-ktx", version.ref = "firebaseCommonKtx" }
 firebase-auth = { group = "com.google.firebase", name = "firebase-auth", version.ref = "firebaseAuth" }
 androidx-runtime-livedata = { group = "androidx.compose.runtime", name = "runtime-livedata", version.ref = "runtimeLivedata" }
-firebase-storage-ktx = { group = "com.google.firebase", name = "firebase-storage-ktx", version.ref = "firebaseStorageKtx" }
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "roomKtx" }
 androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "cameraView" }
 identity-jvm = { group = "com.android.identity", name = "identity-jvm", version.ref = "identityJvm" }

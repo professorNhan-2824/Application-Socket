@@ -60,14 +60,10 @@ import com.example.applicationsocket.data.UserIDModel
 import com.example.applicationsocket.data.getUserEmail
 import com.example.applicationsocket.data.modelContentUser
 import com.example.applicationsocket.ui.theme.ApplicationSocketTheme
+import com.example.applicationsocket.data.cloudinary.CloudinaryUploadHelper
 import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.storage.FirebaseStorage
 import java.io.File
 import java.io.InputStream
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import java.util.UUID
 
 @Composable
 fun SendTo(modifier: Modifier = Modifier) {
@@ -181,37 +177,31 @@ fun uplloadImageAngContent(photoURI: Uri, content: String, email: String, contex
     val database = FirebaseDatabase.getInstance()
     val contentRef = database.getReference("users/$email/content")
 
-    // Firebase Storage reference để lưu ảnh
-    val storageRef = FirebaseStorage.getInstance().reference.child("images/${UUID.randomUUID()}")
+    CloudinaryUploadHelper.uploadImageAsync(
+        context = context,
+        imageUri = photoURI,
+        publicId = null,
+        onSuccess = { secureUrl ->
+            // Tạo ID duy nhất cho nội dung
+            val contentID = contentRef.push().key ?: return@uploadImageAsync
+            val currentDate = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
+            // Tạo đối tượng chứa image URL và content
+            val contentData = modelContentUser(secureUrl, content, currentDate)
 
-    // Upload file ảnh lên Firebase Storage
-    storageRef.putFile(photoURI)
-        .addOnSuccessListener { taskSnapshot ->
-            // Lấy URL của ảnh sau khi upload thành công
-            taskSnapshot.storage.downloadUrl.addOnSuccessListener { uri ->
-                val imageUrl = uri.toString()
-
-                // Tạo ID duy nhất cho nội dung
-                val contentID = contentRef.push().key ?: return@addOnSuccessListener
-                // lấy
-                val currentDate = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
-                // Tạo đối tượng chứa image URL và content
-                val contentData = modelContentUser(imageUrl, content, currentDate)
-
-                // Lưu image URL và content vào Firebase Realtime Database
-                contentRef.child(contentID).setValue(contentData)
-                    .addOnSuccessListener {
-                        Toast.makeText(context, "Upload thành công!", Toast.LENGTH_SHORT).show()
-                        conback()
-                    }
-                    .addOnFailureListener {
-                        Toast.makeText(context, "Lỗi khi lưu nội dung: ${it.message}", Toast.LENGTH_SHORT).show()
-                    }
-            }
+            // Lưu image URL và content vào Firebase Realtime Database
+            contentRef.child(contentID).setValue(contentData)
+                .addOnSuccessListener {
+                    Toast.makeText(context, "Upload thành công!", Toast.LENGTH_SHORT).show()
+                    conback()
+                }
+                .addOnFailureListener {
+                    Toast.makeText(context, "Lỗi khi lưu nội dung: ${it.message}", Toast.LENGTH_SHORT).show()
+                }
+        },
+        onFailure = { exception ->
+            Toast.makeText(context, "Lỗi khi upload ảnh: ${exception.message}", Toast.LENGTH_SHORT).show()
         }
-        .addOnFailureListener {
-            Toast.makeText(context, "Lỗi khi upload ảnh: ${it.message}", Toast.LENGTH_SHORT).show()
-        }
+    )
 }
 @Composable
 fun PersonToSeePictureBlock(painterResoureForImage: Int, personName: String){

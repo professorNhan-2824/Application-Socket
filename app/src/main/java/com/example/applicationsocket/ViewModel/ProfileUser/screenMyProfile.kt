@@ -60,10 +60,9 @@ import androidx.compose.ui.unit.sp
 import com.example.applicationsocket.data.UserIDModel
 import com.example.applicationsocket.data.UserSessionViewModel
 import com.example.applicationsocket.data.modelNameUser
+import com.example.applicationsocket.data.cloudinary.CloudinaryUploadHelper
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.storage.FirebaseStorage
-import java.util.UUID
 
 //hàm ảnh profile user theo dạng tròn
 @Composable
@@ -84,64 +83,29 @@ fun CircularImage(imageURI: String?, contentImage: String){
 
     )
 }
-//hàm này xoá ảnh sau khi kiem tra imageprofileuser có ảnh cũ không
-fun deleteImageFromFirebaseStorage(imageUrl: String, onSuccess: () -> Unit, onFailure: () -> Unit) {
-    if (imageUrl.isEmpty()) {
-        Log.e("FirebaseStorage", "Cannot delete image: URL is empty")
-        onFailure()
-        return
-    }
 
-    try {
-        val storageReference = FirebaseStorage.getInstance().getReferenceFromUrl(imageUrl)
-        storageReference.delete()
-            .addOnSuccessListener { onSuccess() }
-            .addOnFailureListener { onFailure() }
-    } catch (e: IllegalArgumentException) {
-        Log.e("FirebaseStorage", "Invalid URI: $imageUrl", e)
-        onFailure()
-    }
-}
-
-
-
-
-fun uploadImageToFirebaseStorage(email: String, imageUri: Uri, context: Context, onUploadSuccess: (String) -> Unit) {
+fun uploadImageToCloudinary(email: String, imageUri: Uri, context: Context, onUploadSuccess: (String) -> Unit) {
     val database = FirebaseDatabase.getInstance()
     val userRef = database.getReference("users").child(email).child("information")
+    val publicId = "profile_" + email.replace("@", "_").replace(".", "_").replace(",", "_")
 
-    // Kiểm tra và xóa ảnh cũ nếu có
-    getImageProfileUser(email) { existingImageUrl ->
-        existingImageUrl?.imageProfileUser?.let { url ->
-            deleteImageFromFirebaseStorage(url, {
-                // Xóa ảnh cũ thành công, tiếp tục tải lên ảnh mới
-                uploadNewImage(imageUri, userRef, onUploadSuccess, context)
-            }, {
-                Toast.makeText(context, "Failed to delete old image", Toast.LENGTH_SHORT).show()
-            })
-        } ?: run {
-            // Không có ảnh cũ, tiếp tục tải lên ảnh mới
-            uploadNewImage(imageUri, userRef, onUploadSuccess, context)
-        }
-    }
+    uploadNewImage(imageUri, publicId, userRef, onUploadSuccess, context)
 }
 
-
-private fun uploadNewImage(imageUri: Uri, userRef: DatabaseReference, onUploadSuccess: (String) -> Unit, context: Context) {
-    val storageReference = FirebaseStorage.getInstance().reference
-    val imageRef = storageReference.child("imagesProfile/${UUID.randomUUID()}.jpg")
-
-    imageRef.putFile(imageUri)
-        .addOnSuccessListener {
-            imageRef.downloadUrl.addOnSuccessListener { uri ->
-                // Cập nhật URL ảnh mới vào Realtime Database
-                userRef.child("imageProfileUser").setValue(uri.toString())
-                onUploadSuccess(uri.toString())
-            }
-        }
-        .addOnFailureListener { exception ->
+private fun uploadNewImage(imageUri: Uri, publicId: String, userRef: DatabaseReference, onUploadSuccess: (String) -> Unit, context: Context) {
+    CloudinaryUploadHelper.uploadImageAsync(
+        context = context,
+        imageUri = imageUri,
+        publicId = publicId,
+        onSuccess = { secureUrl ->
+            // Cập nhật URL ảnh mới vào Realtime Database
+            userRef.child("imageProfileUser").setValue(secureUrl)
+            onUploadSuccess(secureUrl)
+        },
+        onFailure = { exception ->
             Toast.makeText(context, "Upload failed: ${exception.message}", Toast.LENGTH_SHORT).show()
         }
+    )
 }
 
 //hàm này chọn ảnh của máy user
@@ -239,7 +203,7 @@ fun imageVSnameProfile(email: String, user: UserSessionViewModel, comback: () ->
             )
             Spacer(modifier = Modifier.height(1.dp))
             ImagePicker { uri ->
-                uploadImageToFirebaseStorage(email, uri, context) { uploadedImageUrl ->
+                uploadImageToCloudinary(email, uri, context) { uploadedImageUrl ->
                     // Cập nhật userInfor với ảnh mới
                     userInfor = userInfor?.copy(imageProfileUser = uploadedImageUrl)
                 }
