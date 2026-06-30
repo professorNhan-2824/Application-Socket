@@ -11,6 +11,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.platform.LocalContext
 import android.Manifest
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -118,6 +120,31 @@ fun MainNaviga(){
     val userIDModel: UserIDModel = viewModel()
     val navController = rememberNavController()
     val context = LocalContext.current
+
+    DisposableEffect(Unit) {
+        val auth = FirebaseAuth.getInstance()
+        val listener = FirebaseAuth.AuthStateListener { firebaseAuth ->
+            val currentUser = firebaseAuth.currentUser
+            if (currentUser != null) {
+                val email = currentUser.email
+                if (email != null) {
+                    val emailuser = encodeEmail(email)
+                    getUserName(emailuser, context, userViewModel, togoHome = {
+                        if (navController.currentBackStackEntry?.destination?.route != "Home/$emailuser") {
+                            navController.navigate("Home/$emailuser") {
+                                popUpTo("homeLogin") { inclusive = true }
+                            }
+                        }
+                    })
+                }
+            }
+        }
+        auth.addAuthStateListener(listener)
+        onDispose {
+            auth.removeAuthStateListener(listener)
+        }
+    }
+
     ApplicationSocketTheme {
         NavHost(navController = navController, startDestination = "homeLogin") {
             // Navigate to Login screen
